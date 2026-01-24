@@ -142,7 +142,9 @@ class Profiles(Base):
     leg_length = Column(Float, nullable=False, comment="Длина ноги (см)")
     dominant_leg = Column(SQLEnum(SideEnum), default=SideEnum.RIGHT, comment="Ведущая нога")
     created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    baseline_report_id = Column(Integer, ForeignKey("reports.id"), nullable=True, comment="ID отчета, принятого за эталон")
 
+    baseline_report = relationship("Report", foreign_keys=[baseline_report_id], post_update=True)
     user = relationship("Users", back_populates="profile")
 
     __table_args__ = (

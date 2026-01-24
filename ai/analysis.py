@@ -1,10 +1,11 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from sqlalchemy.orm import Session
-from app.data.tables import Report, Users
 from app.routers.schemas import ReportCreate
 from ai.brain import Brain
 from ai.diff_calc import matrix_calc
 from app.config import get_settings
+from app.data.tables import Users, Profiles, Injury, Report 
+from datetime import datetime, timezone
 
 settings = get_settings()
 
@@ -13,17 +14,7 @@ class Analysis:
         self.db = db
         self.brain = Brain()
     
-    def get_user_previous_reports(self, user_id: int, limit: int = 3) -> List[Dict]:
-        """
-        Retrieve user's previous reports for trend analysis.
-        
-        Args:
-            user_id: User ID
-            limit: Number of previous reports to retrieve
-        
-        Returns:
-            List of report summaries
-        """
+    def get_previous_reports(self, user_id: int, limit: int = 3) -> List[Dict]:
         reports = (
             self.db.query(Report)
             .filter(Report.user_id == user_id)
@@ -32,157 +23,201 @@ class Analysis:
             .all()
         )
         
-        # Convert to simplified format for AI context
         report_summaries = []
+        report_data = []
         for r in reports:
             report_summaries.append({
                 "date": r.created_at.isoformat(),
                 "gvi_score": r.gvi_score,
                 "overall_score": r.overall_score,
+            })
+            report_data.append({
+                "id": r.id,
+                "user_id": r.user_id,
+                "activity_type": r.activity_type,
+                "notes": r.notes,
+                "protocol_reference": r.protocol_reference,
+                "personalized_target": r.personalized_target,
+                "analysis_matrix": r.analysis_matrix,
+                "clinical_narrative": r.clinical_narrative,
                 "status": r.status,
                 "key_metrics": {
                     "rhythm_pace": r.rhythm_pace,
                     "joint_mechanics": r.joint_mechanics,
-                    "variability": r.variability
-                }
+                    "variability": r.variability,
+                    "symmetry_phases": r.symmetry_phases,
+                },
+                "recommendations": r.recommendations,
+                "overall_score": r.overall_score,
+                "gvi_score": r.gvi_score,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
             })
         
         return report_summaries
+        return report_data
+
+    def _flatten_data(self, data: Dict) -> Dict[str, Any]:
+        try:
+            profile = data.get("user_profile", {})
+            injury = profile.get("injury_info", {})
+            metrics = data.get("session_metrics", {})
+        
+            rhythm = metrics.get("rhythm_pace", {})
+            mechanics = metrics.get("joint_mechanics", {})
+            knee = mechanics.get("knee_angle", {})
+            variability = metrics.get("variability", {})
+            phases = metrics.get("symmetry_phases", {})
+        
+            verdict = data.get("clinical_verdict", {})
+
+            return {
+                "category": data.get("clinical_category"),
+                "description": data.get("description"),
+                "user_age": profile.get("age"),
+                "user_gender": profile.get("gender"),
+                "pain_level": injury.get("pain_level", 0),
+                "gvi": variability.get("gvi", 0),
+                "cadence": rhythm.get("cadence", 0),
+                "avg_speed": rhythm.get("avg_speed", 0),
+                "angular_velocity": rhythm.get("avg_peak_angular_velocity", 0),
+                "knee_rom": knee.get("amplitude", 0),
+                "knee_mean": knee.get("mean", 0),
+                "step_var": variability.get("step_time_variability", 0),
+                "knee_var": variability.get("knee_angle_variability", 0),
+                "stance_swing_ratio": phases.get("stance_swing_ratio", 0),
+                "impact_force": phases.get("avg_impact_force", 0),
+                "verdict_status": verdict.get("status"),
+                "key_anomaly": verdict.get("key_anomaly"),
+                "comparison_note": verdict.get("comparison_note")
+            }
+        except Exception as e:
+            print(f"Ошибка при обработке полных данных: {e}")
+            return {}
     
     def generate_report(self, report_data: ReportCreate) -> Report:
-        """
-        Generate comprehensive gait analysis report.
-        
-        This is the main analysis pipeline:
-        1. Fetch user profile
-        2. Get previous reports (for trend analysis)
-        3. Run AI analysis (StridexBrain)
-        4. Calculate comparison matrix
-        5. Identify gait patterns
-        6. Store results in database
-        """
-        # 1. Fetch user
-        user = self.db.query(User).filter(User.id == report_data.user_id).first()
+        user = self.db.query(Users).filter(Users.id == report_data.user_id).first()
         if not user:
             raise ValueError(f"User {report_data.user_id} not found")
-        
-        # 2. Get previous reports
+
+        profile = self.db.query(Profiles).filter(Profiles.id == user.id).first()
+        injury = self.db.query(Injury).filter(Injury.user_id == user.id).first()
+
         previous_reports = self.get_user_previous_reports(
-            user.id,
-            limit=settings.CONTEXT_WINDOW_SIZE
+            user.id, limit=settings.CONTEXT_WINDOW_SIZE
         )
-        
-        # 3. Prepare user profile for AI
-        user_profile = {
-            "age": user.age,
-            "gender": user.gender,
-            "weight": user.weight,
-            "height": user.height,
-            "dominant_leg": user.dominant_leg,
-            "placed_leg": user.placed_leg,
-            "injury_info": user.injury_info
+
+        days_post_op = None
+        if injury and injury.diagnosis_date:
+            days_post_op = (datetime.now(timezone.utc) - injury.diagnosis_date.replace(tzinfo=timezone.utc)).days
+
+        user_payload = {
+            "personal_info": {
+                "age": profile.age if profile else None,
+                "gender": profile.gender.value if profile else None,
+                "weight": profile.weight if profile else None,
+                "height": profile.height if profile else None,
+                "leg_length": profile.leg_length if profile else None,
+                "shoe_size": profile.shoe_size if profile else None,
+            },
+            "injury_context": {
+                "has_injury": profile.have_injury if profile else False,
+                "body_part": [bp.value for bp in injury.body_part] if injury else [],
+                "injury_type": [it.value for it in injury.injury_type] if injury else [],
+                "side": injury.side.value if injury else None,
+                "placed_leg": injury.placed_leg.value if injury else profile.dominant_leg.value,
+                "pain_level": injury.pain_level if injury else 0,
+                "days_since_diagnosis": days_post_op
+            }
         }
-        
-        # 4. Run AI analysis
+
         session_metrics = report_data.session_metrics.model_dump()
-        
-        ai_analysis = self.brain.analyze_gait(
-            user_profile=user_profile,
+    
+        ai_narrative = self.brain.analyze_gait(
+            user_profile=user_payload,
             session_metrics=session_metrics,
             previous_reports=previous_reports
         )
-        
-        # 5. Extract personalized targets from AI analysis
-        personalized_targets = self.brain.extract_targets(ai_analysis)
-        
-        # 6. Calculate comparison matrix
-        user_current_data = {
-            "gvi": session_metrics["variability"]["gvi"],
-            "cadence": session_metrics["rhythm_pace"]["cadence"],
-            "knee_amplitude": session_metrics["joint_mechanics"]["knee_angle"]["amplitude"],
-            "step_time_variability": session_metrics["variability"]["step_time_variability"],
-            "stance_swing_ratio": session_metrics["symmetry_phases"]["stance_swing_ratio"]
-        }
-        
-        # Clinical norms (these could also come from the reference database)
-        clinical_norms = {
-            "gvi": 100.0,
-            "cadence": 110.0,
-            "knee_amplitude": 60.0,
-            "step_time_variability": 2.0,
-            "stance_swing_ratio": 1.5
-        }
-        
-        matrix = matrix_calc(
-            user_data=user_current_data,
-            clinical_norm=clinical_norms,
-            personal_target=personalized_targets
+
+        personal_targets = self.brain.extract_targets(ai_narrative)
+        flat_user_data = self._flatten_metrics(session_metrics)
+    
+        final_targets = {k: personal_targets.get(k, self.CLINICAL_NORMS.get(k, 0)) for k in flat_user_data.keys()}
+    
+        analysis_matrix = matrix_calc(
+            user_data=flat_user_data,
+            clinical_norm=self.CLINICAL_NORMS,
+            personal_target=final_targets
         )
-        
-        # 7. Identify gait pattern
-        gvi = session_metrics["variability"]["gvi"]
-        pattern = identify_gait_pattern(matrix, gvi)
-        
-        # 8. Determine status
-        if pattern["severity"] == "Critical":
-            status = "Critical"
-        elif pattern["severity"] == "Medium":
-            status = "Warning"
-        else:
-            status = "Safe"
-        
-        # 9. Calculate overall score (weighted average)
-        gvi_weight = 0.4
-        rom_weight = 0.3
-        symmetry_weight = 0.3
-        
-        gvi_normalized = min(gvi / 100.0, 1.0)
-        rom_normalized = min(user_current_data["knee_amplitude"] / 60.0, 1.0)
-        symmetry_score = max(0, 1.0 - abs(1.5 - user_current_data["stance_swing_ratio"]) / 1.5)
-        
-        overall_score = (
-            gvi_weight * gvi_normalized +
-            rom_weight * rom_normalized +
-            symmetry_weight * symmetry_score
-        ) * 100
-        
-        # 10. Create report record
+
+        current_pain = injury.pain_level if injury else 0
+        clinical_pattern = self._detect_clinical_pattern(analysis_matrix, current_pain)
+        overall_score = self._calculate_smart_score(analysis_matrix, clinical_pattern["status"])
+
         new_report = Report(
             user_id=user.id,
-            activity_type=session_metrics.get("activity_type"),
-            notes=session_metrics.get("notes"),
+            activity_type=session_metrics.get("activity_type", ["walking"]),
+            
             rhythm_pace=session_metrics["rhythm_pace"],
             joint_mechanics=session_metrics["joint_mechanics"],
             variability=session_metrics["variability"],
             symmetry_phases=session_metrics["symmetry_phases"],
-            protocol_reference=ai_analysis[:500],  # Store first 500 chars
-            personalized_target=personalized_targets,
-            analysis_matrix=matrix,
-            clinical_narrative=pattern["description"],
-            status=status,
-            recommendations=pattern["verdict"],
-            overall_score=round(overall_score, 1),
-            gvi_score=gvi
-        )
         
+            protocol_reference=ai_narrative,
+            personalized_target=final_targets,
+            analysis_matrix=analysis_matrix,
+            clinical_narrative=clinical_pattern["description"],
+            recommendations=clinical_pattern["recommendation"],
+            status=clinical_pattern["status"],
+        
+            overall_score=overall_score,
+            gvi_score=flat_user_data.get("gvi", 0)
+        )
+
         self.db.add(new_report)
         self.db.commit()
         self.db.refresh(new_report)
-        
         return new_report
     
+    def _calculate_score(self, matrix: Dict, status: str) -> float:
+        weights = {
+            "gvi": 0.35,        
+            "symmetry": 0.25,   
+            "rom": 0.20,        
+            "rhythm": 0.20      
+        }
+
+        score_gvi = min(matrix["gvi"]["current_value"] / 100.0, 1.0)
+        
+        sym_diff = abs(matrix.get("stance_swing_ratio", {}).get("vs_clinical", {}).get("diff_percent", 0))
+        score_sym = max(0, 1.0 - (sym_diff / 50.0)) 
+        rom_diff = abs(matrix.get("knee_rom", {}).get("vs_clinical", {}).get("diff_percent", 0))
+        score_rom = max(0, 1.0 - (rom_diff / 100.0))
+
+        cadence_diff = abs(matrix.get("cadence", {}).get("vs_clinical", {}).get("diff_percent", 0))
+        score_rhythm = max(0, 1.0 - (cadence_diff / 100.0))
+
+        raw_score = (
+            (score_gvi * weights["gvi"]) +
+            (score_sym * weights["symmetry"]) +
+            (score_rom * weights["rom"]) +
+            (score_rhythm * weights["rhythm"])
+        ) * 100.0
+
+        if status == "Critical":
+            return min(raw_score, 60.0)
+        elif status == "Warning":
+            return min(raw_score, 85.0)
+        
+        return round(raw_score, 1)
+
+    
     def get_full_analysis_text(self, report_id: int) -> str:
-        """
-        Get the full AI analysis text for a report.
-        This regenerates the analysis for chat context.
-        """
         report = self.db.query(Report).filter(Report.id == report_id).first()
         if not report:
             raise ValueError(f"Report {report_id} not found")
         
         user = report.user
         
-        # Reconstruct the analysis
         user_profile = {
             "age": user.age,
             "gender": user.gender,
@@ -197,3 +232,15 @@ class Analysis:
         }
         
         return self.brain.analyze_gait(user_profile, session_metrics)
+
+    def set_baseline(self, report_id: int, user_id: int) -> bool:
+        profile = self.db.query(Profiles).filter(Profiles.id == user_id).first()
+        if not profile:
+            raise ValueError("Profile not found")
+        report = self.db.query(Report).filter(Report.id == report_id, Report.user_id == user_id).first()
+        if not report:
+            raise ValueError("Report not found or does not belong to user")
+        profile.baseline_report_id = report.id
+        self.db.commit()
+        self.db.refresh(profile)
+        return True

@@ -2,9 +2,8 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 from datetime import datetime
 import google.generativeai as genai
-from app.models.chat import ChatSession
-from app.models.report import Report
-from app.services.analysis import AnalysisService
+from app.data.tables import ChatSession, Report
+from ai.analysis import AnalysisService
 from app.config import get_settings
 
 settings = get_settings()
@@ -12,14 +11,11 @@ genai.configure(api_key=settings.GEMINI_API_KEY)
 
 
 class ChatService:
-    """Service for AI-powered chat about gait analysis reports"""
-    
     def __init__(self, db: Session):
         self.db = db
         self.analysis_service = AnalysisService(db)
     
     def _build_chat_system_instruction(self, clinical_report_text: str) -> str:
-        """Build system instruction for chat session"""
         return f"""
 SYSTEM ROLE
 You are Stridex AI Assistant, a helpful and empathetic medical consultant.
@@ -71,9 +67,6 @@ about their recovery progress.
         user_id: int,
         report_id: Optional[int] = None
     ) -> ChatSession:
-        """Get active chat session or create new one"""
-        
-        # Try to find active session for this report
         if report_id:
             session = (
                 self.db.query(ChatSession)
@@ -88,7 +81,6 @@ about their recovery progress.
             if session:
                 return session
         
-        # Create new session
         session_name = f"Chat - {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}"
         new_session = ChatSession(
             user_id=user_id,
@@ -109,60 +101,34 @@ about their recovery progress.
         session_id: int,
         message: str
     ) -> str:
-        """
-        Send message in chat session and get AI response.
-        
-        Args:
-            session_id: Chat session ID
-            message: User's message
-        
-        Returns:
-            AI response text
-        """
-        # Get session
         session = self.db.query(ChatSession).filter(ChatSession.id == session_id).first()
         if not session:
             raise ValueError(f"Chat session {session_id} not found")
-        
-        # Get report context
         report_text = ""
         if session.report_id:
             try:
                 report_text = self.analysis_service.get_full_analysis_text(session.report_id)
             except Exception as e:
                 report_text = f"[Report data unavailable: {str(e)}]"
-        
-        # Build system instruction
         system_instruction = self._build_chat_system_instruction(report_text)
-        
-        # Get chat history
         history = session.chat_history or []
-        
-        # Initialize Gemini chat
         model = genai.GenerativeModel(
             model_name=settings.GEMINI_MODEL,
             system_instruction=system_instruction
         )
-        
-        # Convert history to Gemini format
         gemini_history = []
-        for msg in history[-settings.MAX_CHAT_HISTORY:]:  # Limit history
+        for msg in history[-settings.MAX_CHAT_HISTORY:]:
             gemini_history.append({
                 "role": msg["role"],
                 "parts": [msg["content"]]
             })
-        
-        # Start chat with history
         chat = model.start_chat(history=gemini_history)
-        
-        # Send message
         try:
             response = chat.send_message(message)
             response_text = response.text
         except Exception as e:
             response_text = f"I'm having trouble processing that. Error: {str(e)}"
         
-        # Update chat history
         history.append({
             "role": "user",
             "content": message,
@@ -173,24 +139,18 @@ about their recovery progress.
             "content": response_text,
             "timestamp": datetime.utcnow().isoformat()
         })
-        
         session.chat_history = history
         session.updated_at = datetime.utcnow()
-        
         self.db.commit()
-        
         return response_text
     
     def get_chat_history(self, session_id: int) -> List[dict]:
-        """Get full chat history for a session"""
         session = self.db.query(ChatSession).filter(ChatSession.id == session_id).first()
         if not session:
             raise ValueError(f"Chat session {session_id} not found")
-        
         return session.chat_history or []
     
     def end_session(self, session_id: int) -> None:
-        """Mark chat session as inactive"""
         session = self.db.query(ChatSession).filter(ChatSession.id == session_id).first()
         if session:
             session.is_active = False
