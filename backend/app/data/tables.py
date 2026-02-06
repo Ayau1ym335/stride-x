@@ -1,7 +1,7 @@
 #imports
 from sqlalchemy import (Column, Integer,String,CheckConstraint,
                         DateTime, Float, Boolean, ForeignKey, JSON, Text, Enum as SQLEnum, text,
-                        PrimaryKeyConstraint, Index)
+                        PrimaryKeyConstraint, Index, Date, UniqueConstraint)
 from sqlalchemy.dialects.postgresql import ARRAY
 from datetime import datetime, timezone
 from sqlalchemy.orm import declarative_base, relationship
@@ -324,32 +324,44 @@ class StepMetrics(Base):
 
 class Report(Base):
     __tablename__ = "reports"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    
-    activity_type = Column(JSON, nullable=True) 
-    notes = Column(Text, nullable=True)
-    
-    rhythm_pace = Column(JSON, nullable=True)
-    joint_mechanics = Column(JSON, nullable=True)
-    variability = Column(JSON, nullable=True)
-    symmetry_phases = Column(JSON, nullable=True)
-    
-    protocol_reference = Column(Text, nullable=True)
-    personalized_target = Column(JSON, nullable=True)
-    analysis_matrix = Column(JSON, nullable=True) 
-    clinical_narrative = Column(Text, nullable=True)
-    status = Column(String, nullable=True) 
-    recommendations = Column(Text, nullable=True)
-    
-    overall_score = Column(Float, nullable=True) 
-    gvi_score = Column(Float, nullable=True)
-    
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
-    
-    user = relationship("User", back_populates="reports")
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+   
+    activity_type = Column(JSON)  
+    notes = Column(String, nullable=True) 
 
+    session_metrics_data = Column(JSON) 
+
+    analysis_matrix = Column(JSON) 
+    domain_scores = Column(JSON) 
+
+    gvi_score = Column(Float)
+    overall_score = Column(Float)
+    status = Column(String) 
+
+    anomalies = Column(JSON) 
+
+    user = relationship("Users", back_populates="reports")
+    baseline_report = relationship("Profiles", back_populates="reports")
+
+class ProgressSnapshot(Base):
+    __tablename__ = 'progress_snapshots'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    date = Column(Date, nullable=False)
+    
+    avg_overall_score = Column(Float)
+    avg_gvi_score = Column(Float)
+    radar_domains = Column(JSON)
+    daily_stats = Column(JSON) 
+    pathology_log = Column(JSON)
+    session_count = Column(Integer, default=0)
+    pain_level = Column(Integer)
+    
+    __table_args__ = (UniqueConstraint('user_id', 'date'),)
 
 class ChatSession(Base):
     __tablename__ = "chat_sessions"
@@ -410,7 +422,6 @@ class MedicalReport(Base):
     summary = Column(JSON, comment='{"avg_cadence": 115, "improvement": "+12%", ...}')
     patient = relationship("Users", back_populates="medical_reports")
     doctor = relationship("Doctors")
-
 
 async def init_database():
     """Initialize all tables including TimescaleDB hypertables"""

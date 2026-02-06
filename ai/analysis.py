@@ -244,3 +244,101 @@ class Analysis:
         self.db.commit()
         self.db.refresh(profile)
         return True
+
+    def generate_report(self, report_data: ReportCreate) -> Report:
+        user = self.db.query(Users).filter(Users.id == report_data.user_id).first()
+        if not user:
+            raise ValueError(f"User {report_data.user_id} not found")
+
+        profile = self.db.query(Profiles).filter(Profiles.id == user.id).first()
+        injury = self.db.query(Injury).filter(Injury.user_id == user.id).first()
+
+        # История
+        previous_reports = self.get_user_previous_reports(user.id, limit=settings.CONTEXT_WINDOW_SIZE)
+
+        # Дни после операции
+        days_post_op = None
+        if injury and injury.diagnosis_date:
+            days_post_op = (datetime.now(timezone.utc) - injury.diagnosis_date.replace(tzinfo=timezone.utc)).days
+
+        # Сборка Payload для AI
+        user_payload = {
+            "personal_info": {
+                "age": profile.age if profile else None,
+                "gender": profile.gender.value if profile else None,
+                # ... остальные поля ...
+            },
+            "injury_context": {
+                "pain_level": injury.pain_level if injury else 0,
+                "days_since_diagnosis": days_post_op,
+                # ... остальные поля ...
+            }
+        }
+
+        session_metrics = report_data.session_metrics.model_dump()
+        
+        # 1. AI Анализ
+        ai_narrative = self.brain.analyze_gait(
+            user_profile=user_payload,
+            session_metrics=session_metrics,
+            previous_reports=previous_reports
+        )
+
+        # 2. Вытаскиваем цели из AI
+        personal_targets = self.brain.extract_targets(ai_narrative)
+        
+        # 3. Подготовка данных для Матрицы
+        flat_user_data = self._flatten_metrics(session_metrics)
+        final_targets = {k: personal_targets.get(k, self.CLINICAL_NORMS.get(k, 0)) for k in flat_user_data.keys()}
+
+        # --- [NEW] 4. ПОДГОТОВКА BASELINE (ЭТАЛОНА) ---
+        flat_baseline = None
+        if profile and profile.baseline_report:
+            # Восстанавливаем словарь метрик из объекта отчета, чтобы flatten его съел
+            baseline_raw = {
+                "rhythm_pace": profile.baseline_report.rhythm_pace,
+                "joint_mechanics": profile.baseline_report.joint_mechanics,
+                "variability": profile.baseline_report.variability,
+                "symmetry_phases": profile.baseline_report.symmetry_phases
+            }
+            flat_baseline = self._flatten_metrics(baseline_raw)
+
+        # --- [UPDATED] 5. РАСЧЕТ МАТРИЦЫ (С BASELINE) ---
+        analysis_matrix = matrix_calc(
+            user_data=flat_user_data,
+            clinical_norm=self.CLINICAL_NORMS,
+            personal_target=final_targets,
+            baseline_data=flat_baseline  # <--- ВОТ ЗДЕСЬ ПРОИСХОДИТ МАГИЯ
+        )
+
+        # 6. Паттерны и Скоринг
+        current_pain = injury.pain_level if injury else 0
+        clinical_pattern = self._detect_clinical_pattern(analysis_matrix, current_pain)
+        overall_score = self._calculate_smart_score(analysis_matrix, clinical_pattern["status"])
+
+        # 7. Сохранение
+        new_report = Report(
+            user_id=user.id,
+            activity_type=session_metrics.get("activity_type", ["walking"]),
+            rhythm_pace=session_metrics["rhythm_pace"],
+            joint_mechanics=session_metrics["joint_mechanics"],
+            variability=session_metrics["variability"],
+            symmetry_phases=session_metrics["symmetry_phases"],
+            protocol_reference=ai_narrative,
+            personalized_target=final_targets,
+            analysis_matrix=analysis_matrix,
+            clinical_narrative=clinical_pattern["description"],
+            recommendations=clinical_pattern["recommendation"],
+            status=clinical_pattern["status"],
+            overall_score=overall_score,
+            gvi_score=flat_user_data.get("gvi", 0)
+        )
+
+        self.db.add(new_report)
+        self.db.commit()
+        
+        # --- [NEW] 8. ОБНОВЛЕНИЕ ГРАФИКОВ ПРОГРЕССА ---
+        update_daily_snapshot(user.id, self.db)
+
+        self.db.refresh(new_report)
+        return new_report

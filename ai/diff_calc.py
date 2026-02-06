@@ -13,58 +13,49 @@ def calculate_diff(current: float, target: Optional[float]) -> Union[float, str]
     except ZeroDivisionError:
         return 0.0
 
+
 def matrix_calc(
     user_data: Dict[str, float],
     clinical_norm: Dict[str, float],
-    personal_target: Dict[str, float]
+    baseline_data: Optional[Dict[str, float]] = None
 ) -> Dict[str, Dict[str, Any]]:
+    
     matrix = {}
     
     for metric, value in user_data.items():
         c_target = clinical_norm.get(metric)
-        p_target = personal_target.get(metric)
+        b_target = baseline_data.get(metric) if baseline_data else None
         
-        clinical_dev = calculate_diff(value, c_target)
-        personal_trend = calculate_diff(value, p_target)
+        clinical_diff = calculate_diff(value, c_target)
+        baseline_diff = calculate_diff(value, b_target)
         
-        if isinstance(clinical_dev, (int, float)):
-            if clinical_dev < -15:
-                clinical_status = "Critical"
-            elif clinical_dev < -10:
-                clinical_status = "Lagging"
-            elif clinical_dev > 10:
-                clinical_status = "Above Normal"
-            else:
-                clinical_status = "Normal"
-        else:
-            clinical_status = "Unknown"
-        
-        if isinstance(personal_trend, (int, float)):
-            if personal_trend > 5:
-                personal_status = "Improving"
-            elif personal_trend < -5:
-                personal_status = "Regressing"
-            else:
-                personal_status = "Stable"
-        else:
-            personal_status = "Unknown"
+        c_status = "Unknown"
+        if clinical_diff is not None:
+            if abs(clinical_diff) <= 10: c_status = "Normal"
+            elif abs(clinical_diff) <= 20: c_status = "Warning"
+            else: c_status = "Critical"
+
+        b_status = "No Baseline"
+        if baseline_diff is not None:
+            if abs(baseline_diff) < 3: b_status = "Stable"
+            elif baseline_diff > 0: b_status = "Changed (+)" 
+            else: b_status = "Changed (-)"
         
         matrix[metric] = {
             "current_value": value,
             "vs_clinical": {
                 "target": c_target,
-                "diff_percent": clinical_dev,
-                "status": clinical_status
+                "diff_percent": clinical_diff,
+                "status": c_status
             },
-            "vs_personal": {
-                "target": p_target,
-                "diff_percent": personal_trend,
-                "status": personal_status
+            "vs_baseline": {
+                "target": b_target,
+                "diff_percent": baseline_diff,
+                "status": b_status
             }
         }
-    
+        
     return matrix
-
 
 def start_doctor_chat(clinical_report_text):
     chat_system_instruction = f"""
@@ -108,5 +99,4 @@ Explain the difficult numbers from the report in simple words.
             print(f"NMove: {response.text}")
         except Exception as e:
             print(f"Ошибка соединения: {e}")
-
 
