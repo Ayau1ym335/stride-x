@@ -1,15 +1,16 @@
 import { GaitVisualization } from "./GaitVisualization";
 import { Button } from "@/components/ui/button";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, FileText } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export function HeroSection() {
   return (
     <section className="relative min-h-screen flex items-center overflow-hidden">
       {/* Background gradient */}
       <div className="absolute inset-0 bg-gradient-radial opacity-50" />
-      
+
       {/* Subtle grid pattern */}
-      <div 
+      <div
         className="absolute inset-0 opacity-[0.03]"
         style={{
           backgroundImage: `linear-gradient(hsl(var(--primary)) 1px, transparent 1px),
@@ -22,69 +23,73 @@ export function HeroSection() {
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Left: Copy */}
           <div className="space-y-8">
-            <div 
+            <div
               className="opacity-0 animate-fade-in"
               style={{ animationDelay: '0.1s' }}
             >
               <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-muted border border-border text-sm text-muted-foreground">
                 <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                Clinical decision support
+                Movement tracking made simple
               </span>
             </div>
 
-            <h1 
+            <h1
               className="text-4xl md:text-5xl lg:text-6xl font-semibold leading-tight opacity-0 animate-fade-in"
               style={{ animationDelay: '0.2s' }}
             >
-              Gait analysis that{' '}
-              <span className="text-gradient-primary">supports</span>{' '}
-              clinical insight
+              Gait trends between visits—
+              <span className="text-gradient-primary">made clear</span>
             </h1>
 
-            <p 
+            <p
               className="text-lg md:text-xl text-muted-foreground max-w-xl leading-relaxed opacity-0 animate-fade-in"
               style={{ animationDelay: '0.3s' }}
             >
-              We provide physicians with objective movement data and pattern analysis. 
-              No diagnosis—just clear, actionable information to inform your clinical judgment.
+              NMove helps patients track walking patterns over time and share
+              clinician-ready summaries. Simple insights for better conversations
+              with your care team.
             </p>
 
-            <div 
+            <div
               className="flex flex-col sm:flex-row gap-4 opacity-0 animate-fade-in"
               style={{ animationDelay: '0.4s' }}
             >
-              <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 glow-primary">
-                Learn More
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="lg" className="text-muted-foreground hover:text-foreground">
-                View Documentation
-              </Button>
+              <Link to="/contact">
+                <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 glow-primary">
+                  Join Waitlist
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
+              <Link to="/for-clinicians">
+                <Button variant="ghost" size="lg" className="text-muted-foreground hover:text-foreground">
+                  <FileText className="mr-2 h-4 w-4" />
+                  See Sample Report
+                </Button>
+              </Link>
             </div>
 
-            <div 
-              className="flex items-center gap-8 pt-4 opacity-0 animate-fade-in"
+            {/* Trust indicators */}
+            <div
+              className="flex flex-wrap items-center gap-6 pt-4 opacity-0 animate-fade-in"
               style={{ animationDelay: '0.5s' }}
             >
-              <div className="text-center">
-                <div className="text-2xl font-semibold text-foreground">FDA</div>
-                <div className="text-xs text-muted-foreground">Registered</div>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="w-2 h-2 rounded-full bg-green-500" />
+                Not a diagnostic device
               </div>
-              <div className="w-px h-10 bg-border" />
-              <div className="text-center">
-                <div className="text-2xl font-semibold text-foreground">HIPAA</div>
-                <div className="text-xs text-muted-foreground">Compliant</div>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="w-2 h-2 rounded-full bg-green-500" />
+                Supports clinical care
               </div>
-              <div className="w-px h-10 bg-border" />
-              <div className="text-center">
-                <div className="text-2xl font-semibold text-foreground">SOC 2</div>
-                <div className="text-xs text-muted-foreground">Certified</div>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="w-2 h-2 rounded-full bg-green-500" />
+                Seeking clinician advisors
               </div>
             </div>
           </div>
 
           {/* Right: 3D Visualization */}
-          <div 
+          <div
             className="h-[500px] lg:h-[600px] opacity-0 animate-scale-in"
             style={{ animationDelay: '0.3s' }}
           >

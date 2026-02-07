@@ -138,9 +138,19 @@ class Profiles(Base):
     height = Column(Float, nullable=False)
 
     have_injury = Column(Boolean, nullable=False, default=False)
+    have_banomaly = Column(Boolean, nullable=False, default=False)
+    banomaly = Column(String, nullable=True)
+
     shoe_size = Column(Float, nullable=False, comment="Размер обуви (RU)")
     leg_length = Column(Float, nullable=False, comment="Длина ноги (см)")
     dominant_leg = Column(SQLEnum(SideEnum), default=SideEnum.RIGHT, comment="Ведущая нога")
+    
+    nationality = Column(String, nullable=False)
+    lifestyle = Column(String, nullable=False) #сидячий, активный...
+    smoke = Column(Boolean, nullable=False, default=False)
+    alcohol = Column(Boolean, nullable=False, default=False)
+    notes = Column(String, nullable=True) #additional comments about lifestyle
+
     created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     baseline_report_id = Column(Integer, ForeignKey("reports.id"), nullable=True, comment="ID отчета, принятого за эталон")
 

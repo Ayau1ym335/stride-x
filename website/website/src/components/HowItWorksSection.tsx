@@ -1,64 +1,62 @@
-import { Upload, BarChart3, FileText } from "lucide-react";
+import { Watch, Footprints, TrendingUp, Share2 } from "lucide-react";
 
 const steps = [
   {
-    icon: Upload,
-    title: "Capture Movement Data",
-    description: "Patients complete a standardized walking protocol. Our sensors capture comprehensive kinematic data across multiple gait cycles.",
-    color: "primary"
+    icon: Watch,
+    step: "1",
+    title: "Wear",
+    description: "Put on your NMove sensor—it's lightweight and comfortable for all-day wear.",
   },
   {
-    icon: BarChart3,
-    title: "Pattern Analysis",
-    description: "Our algorithms identify deviations from normative patterns, quantifying asymmetries, timing variations, and movement characteristics.",
-    color: "secondary"
+    icon: Footprints,
+    step: "2",
+    title: "Walk Normally",
+    description: "Go about your day. The sensor captures movement data during everyday activities.",
   },
   {
-    icon: FileText,
-    title: "Clinical Report",
-    description: "You receive a structured report with objective measurements and visualizations—data to complement your examination findings.",
-    color: "accent"
-  }
+    icon: TrendingUp,
+    step: "3",
+    title: "Trends Update",
+    description: "Your dashboard updates with daily and weekly trends. See your progress at a glance.",
+  },
+  {
+    icon: Share2,
+    step: "4",
+    title: "Share Report",
+    description: "Generate a one-page summary for your clinician before your next visit.",
+  },
 ];
 
 export function HowItWorksSection() {
   return (
-    <section id="how-it-works" className="py-24 relative">
+    <section id="how-it-works" className="py-24 bg-muted/30">
       <div className="container mx-auto px-6">
-        <div className="text-center max-w-2xl mx-auto mb-16">
+        <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-semibold mb-4">
-            How it works
+            How it <span className="text-gradient-primary">works</span>
           </h2>
-          <p className="text-muted-foreground text-lg">
-            A straightforward process designed to integrate seamlessly into clinical workflows.
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            Four simple steps to better movement insights
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
           {steps.map((step, index) => (
-            <div 
-              key={index}
-              className="relative group"
-            >
+            <div key={step.title} className="relative group">
               {/* Connection line */}
               {index < steps.length - 1 && (
-                <div className="hidden md:block absolute top-12 left-[60%] w-full h-px bg-gradient-to-r from-border to-transparent" />
+                <div className="hidden lg:block absolute top-12 left-1/2 w-full h-0.5 bg-border group-hover:bg-primary/30 transition-colors" />
               )}
-              
-              <div className="bg-card border border-border rounded-2xl p-8 hover:border-primary/30 transition-all duration-300 h-full">
-                <div 
-                  className={`w-12 h-12 rounded-xl flex items-center justify-center mb-6 ${
-                    step.color === 'primary' ? 'bg-primary/20 text-primary' :
-                    step.color === 'secondary' ? 'bg-secondary/20 text-secondary' :
-                    'bg-accent/20 text-accent'
-                  }`}
-                >
-                  <step.icon className="w-6 h-6" />
+
+              <div className="relative z-10 text-center">
+                <div className="w-24 h-24 rounded-2xl bg-card border border-border mx-auto mb-6 flex items-center justify-center group-hover:border-primary/50 transition-colors">
+                  <step.icon className="h-10 w-10 text-primary" />
                 </div>
-                
-                <div className="text-sm text-muted-foreground mb-2">Step {index + 1}</div>
-                <h3 className="text-xl font-medium mb-3">{step.title}</h3>
-                <p className="text-muted-foreground leading-relaxed">{step.description}</p>
+                <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-semibold flex items-center justify-center mx-auto mb-4">
+                  {step.step}
+                </div>
+                <h3 className="text-lg font-semibold mb-2">{step.title}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">{step.description}</p>
               </div>
             </div>
           ))}

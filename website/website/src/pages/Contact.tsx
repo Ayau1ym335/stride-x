@@ -1,0 +1,207 @@
+import { Navbar } from "@/components/Navbar";
+import { Footer } from "@/components/Footer";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useState } from "react";
+import { CheckCircle, Mail, MapPin, ArrowRight } from "lucide-react";
+
+const Contact = () => {
+    const [formType, setFormType] = useState<"patient" | "clinician">("patient");
+    const [formData, setFormData] = useState({
+        name: "",
+        email: "",
+        organization: "",
+        message: "",
+    });
+    const [submitted, setSubmitted] = useState(false);
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        // TODO: Connect to backend API
+        setSubmitted(true);
+    };
+
+    return (
+        <div className="min-h-screen bg-background">
+            <Navbar />
+
+            {/* Hero */}
+            <section className="pt-32 pb-16">
+                <div className="container mx-auto px-6">
+                    <div className="max-w-3xl mx-auto text-center">
+                        <h1 className="text-4xl md:text-5xl font-semibold mb-6">
+                            Get in <span className="text-gradient-primary">touch</span>
+                        </h1>
+                        <p className="text-xl text-muted-foreground">
+                            Join our waitlist for early access, or reach out with questions.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            {/* Contact Form */}
+            <section className="py-16">
+                <div className="container mx-auto px-6">
+                    <div className="grid lg:grid-cols-2 gap-12 max-w-5xl mx-auto">
+                        {/* Form */}
+                        <div>
+                            {submitted ? (
+                                <div className="p-8 rounded-2xl bg-card border border-border text-center">
+                                    <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-4">
+                                        <CheckCircle className="h-8 w-8 text-green-500" />
+                                    </div>
+                                    <h3 className="text-xl font-semibold mb-2">Thank you!</h3>
+                                    <p className="text-muted-foreground">
+                                        {formType === "patient"
+                                            ? "You're on the waitlist! We'll be in touch when early access opens."
+                                            : "We'll send you a sample report and more information about our clinician program."}
+                                    </p>
+                                </div>
+                            ) : (
+                                <form onSubmit={handleSubmit} className="p-8 rounded-2xl bg-card border border-border">
+                                    <h2 className="text-2xl font-semibold mb-6">I am a...</h2>
+
+                                    <RadioGroup
+                                        value={formType}
+                                        onValueChange={(value) => setFormType(value as "patient" | "clinician")}
+                                        className="flex gap-4 mb-8"
+                                    >
+                                        <div className="flex items-center space-x-2">
+                                            <RadioGroupItem value="patient" id="patient" />
+                                            <Label htmlFor="patient" className="cursor-pointer">Patient / Individual</Label>
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                            <RadioGroupItem value="clinician" id="clinician" />
+                                            <Label htmlFor="clinician" className="cursor-pointer">Clinician / Partner</Label>
+                                        </div>
+                                    </RadioGroup>
+
+                                    <div className="space-y-6">
+                                        <div className="grid md:grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="name">Name {formType === "clinician" && "*"}</Label>
+                                                <Input
+                                                    id="name"
+                                                    value={formData.name}
+                                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                                    required={formType === "clinician"}
+                                                    className="bg-background"
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="email">Email *</Label>
+                                                <Input
+                                                    id="email"
+                                                    type="email"
+                                                    value={formData.email}
+                                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                                    required
+                                                    className="bg-background"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {formType === "clinician" && (
+                                            <div className="space-y-2">
+                                                <Label htmlFor="organization">Organization / Practice</Label>
+                                                <Input
+                                                    id="organization"
+                                                    value={formData.organization}
+                                                    onChange={(e) => setFormData({ ...formData, organization: e.target.value })}
+                                                    className="bg-background"
+                                                />
+                                            </div>
+                                        )}
+
+                                        <div className="space-y-2">
+                                            <Label htmlFor="message">Message (optional)</Label>
+                                            <Textarea
+                                                id="message"
+                                                value={formData.message}
+                                                onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                                                placeholder={
+                                                    formType === "patient"
+                                                        ? "Tell us about your interest in NMove..."
+                                                        : "Tell us about your practice and interest in NMove..."
+                                                }
+                                                rows={4}
+                                                className="bg-background"
+                                            />
+                                        </div>
+
+                                        <div className="text-xs text-muted-foreground">
+                                            By submitting, you agree to our{" "}
+                                            <a href="/privacy" className="text-primary hover:underline">Privacy Policy</a>
+                                            {" "}and{" "}
+                                            <a href="/terms" className="text-primary hover:underline">Terms of Service</a>.
+                                        </div>
+
+                                        <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
+                                            {formType === "patient" ? "Join Waitlist" : "Request Sample Report"}
+                                            <ArrowRight className="ml-2 h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </form>
+                            )}
+                        </div>
+
+                        {/* Contact Info */}
+                        <div className="space-y-8">
+                            <div>
+                                <h2 className="text-2xl font-semibold mb-6">Contact information</h2>
+                                <div className="space-y-6">
+                                    <div className="flex items-start gap-4">
+                                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                                            <Mail className="h-5 w-5 text-primary" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-semibold mb-1">Email</h3>
+                                            <a href="mailto:hello@nmove.co" className="text-muted-foreground hover:text-primary transition-colors">
+                                                hello@nmove.co
+                                            </a>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-4">
+                                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                                            <MapPin className="h-5 w-5 text-primary" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-semibold mb-1">Location</h3>
+                                            <p className="text-muted-foreground">United States</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="p-6 rounded-xl bg-muted/50 border border-border">
+                                <h3 className="font-semibold mb-3">Response time</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    We typically respond within 1-2 business days. For urgent inquiries,
+                                    please mention "URGENT" in your message.
+                                </p>
+                            </div>
+
+                            <div className="p-6 rounded-xl bg-gradient-to-br from-primary/10 to-secondary/10 border border-primary/20">
+                                <h3 className="font-semibold mb-3">For clinicians</h3>
+                                <p className="text-sm text-muted-foreground mb-4">
+                                    Interested in joining our clinician advisory network or participating
+                                    in our pilot program? We'd love to hear from you.
+                                </p>
+                                <a href="/for-clinicians" className="text-primary text-sm hover:underline">
+                                    Learn more about our clinician program →
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <Footer />
+        </div>
+    );
+};
+
+export default Contact;

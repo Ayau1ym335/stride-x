@@ -1,34 +1,80 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ArrowRight, Stethoscope } from "lucide-react";
+import { Link } from "react-router-dom";
+import { useState } from "react";
 
 export function CTASection() {
+  const [email, setEmail] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // TODO: Connect to backend API
+    setSubmitted(true);
+  };
+
   return (
-    <section id="contact" className="py-24 relative">
-      <div className="container mx-auto px-6">
-        <div className="relative overflow-hidden rounded-3xl bg-card border border-border p-12 md:p-16">
-          {/* Background glow */}
-          <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-          <div className="absolute bottom-0 left-0 w-64 h-64 bg-secondary/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
-          
-          <div className="relative z-10 max-w-2xl">
-            <h2 className="text-3xl md:text-4xl font-semibold mb-4">
-              Ready to integrate objective gait data into your practice?
-            </h2>
-            <p className="text-muted-foreground text-lg mb-8 leading-relaxed">
-              We work with healthcare institutions and clinical practices to implement 
-              gait analysis that fits your workflow. No sales pressure—just a conversation 
-              about whether our approach might be useful for your patients.
+    <section className="py-24 relative overflow-hidden">
+      {/* Background gradient */}
+      <div className="absolute inset-0 bg-gradient-radial opacity-30" />
+
+      <div className="container mx-auto px-6 relative z-10">
+        <div className="grid md:grid-cols-2 gap-12">
+          {/* Patients CTA */}
+          <div className="p-8 md:p-10 rounded-2xl bg-card border border-border">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm mb-6">
+              For Patients
+            </div>
+            <h3 className="text-2xl md:text-3xl font-semibold mb-4">
+              Ready to track your progress?
+            </h3>
+            <p className="text-muted-foreground mb-6 leading-relaxed">
+              Join our waitlist for early access. Be among the first to experience
+              better movement tracking between appointments.
             </p>
-            
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 glow-primary">
-                Schedule a Conversation
+
+            {submitted ? (
+              <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/30 text-green-500">
+                ✓ Thank you! We'll be in touch soon.
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="flex gap-3">
+                <Input
+                  type="email"
+                  placeholder="Enter your email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="flex-1 bg-background border-border"
+                />
+                <Button type="submit" className="bg-primary text-primary-foreground hover:bg-primary/90">
+                  Join
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </form>
+            )}
+          </div>
+
+          {/* Clinicians CTA */}
+          <div className="p-8 md:p-10 rounded-2xl bg-gradient-to-br from-primary/10 to-secondary/10 border border-primary/20">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary/20 text-secondary text-sm mb-6">
+              <Stethoscope className="h-4 w-4" />
+              For Clinicians
+            </div>
+            <h3 className="text-2xl md:text-3xl font-semibold mb-4">
+              See how NMove fits your practice
+            </h3>
+            <p className="text-muted-foreground mb-6 leading-relaxed">
+              Request a sample report template and learn how NMove can give you
+              objective context between patient visits—without adding workflow burden.
+            </p>
+            <Link to="/for-clinicians">
+              <Button variant="outline" className="border-primary/50 text-primary hover:bg-primary/10">
+                Request Demo Report
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
-              <Button variant="outline" size="lg" className="border-border text-foreground hover:bg-muted">
-                Download Clinical Overview
-              </Button>
-            </div>
+            </Link>
           </div>
         </div>
       </div>
